@@ -1,0 +1,160 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://wiki.ros.org/xacro">
+  <xacro:property name="M_PI" value="3.1415926535897931" />
+
+  <xacro:macro name="zed_camera"
+               params="parent_link
+                       xyz:='0.0 0.0 0.0'
+                       rpy:='0.0 0.0 0.0'
+                       model:=zed2
+                       device_namespace:=zed">
+
+    <!-- ZED2 properties -->
+    <xacro:property name="baseline" value="0.12" />
+    <xacro:property name="height" value="0.03" />
+    <xacro:property name="bottom_slope" value="0.05" />
+    <xacro:property name="screw_offset_x" value="0.0" />
+    <xacro:property name="screw_offset_z" value="0.0" />
+    <xacro:property name="optical_offset_x" value="-0.01" />
+
+    <!-- Camera mounting point -->
+    <link name="${device_namespace}_link" />
+    <joint name="${device_namespace}_base_joint" type="fixed">
+      <parent link="${parent_link}" />
+      <child link="${device_namespace}_link" />
+      <origin xyz="${xyz}" rpy="${rpy}" />
+    </joint>
+
+    <!-- Camera Center -->
+    <link name="${device_namespace}_center">
+      <visual>
+        <origin xyz="${screw_offset_x-0.02} 0 ${screw_offset_z}" rpy="0 0 0" />
+        <geometry>
+          <box size="0.033 0.175 0.03" />
+        </geometry>
+        <material name="zed_mat">
+          <color rgba="0.25 0.25 0.25 0.99" />
+        </material>
+      </visual>
+      <collision>
+        <origin xyz="${screw_offset_x-0.02} 0 ${screw_offset_z}" rpy="0.0 0.0 0.0" />
+        <geometry>
+          <box size="0.033 0.175 0.03" />
+        </geometry>
+      </collision>
+    </link>
+    <joint name="${device_namespace}_camera_center_joint" type="fixed">
+      <parent link="${device_namespace}_link" />
+      <child link="${device_namespace}_center" />
+      <origin xyz="0.02 0 ${height/2}" rpy="0 ${bottom_slope} 0" />
+    </joint>
+
+    <!-- Camera Center Optical Frame -->
+    <link name="${device_namespace}_center_optical_frame" />
+    <joint name="${device_namespace}_center_joint" type="fixed">
+      <parent link="${device_namespace}_center" />
+      <child link="${device_namespace}_center_optical_frame" />
+      <origin xyz="0.0 0.0 0.0" rpy="${-M_PI/2.0} 0 ${-M_PI/2.0}" />
+    </joint>
+
+    <!-- Left Camera -->
+    <link name="${device_namespace}_left_camera_frame" />
+    <joint name="${device_namespace}_left_camera_joint" type="fixed">
+      <parent link="${device_namespace}_center" />
+      <child link="${device_namespace}_left_camera_frame" />
+      <origin xyz="${optical_offset_x} ${baseline/2} 0" rpy="0 0 0" />
+    </joint>
+
+    <link name="${device_namespace}_left_camera_optical_frame" />
+    <joint name="${device_namespace}_left_camera_optical_joint" type="fixed">
+      <origin xyz="0 0 0" rpy="-${M_PI/2} 0.0 -${M_PI/2}" />
+      <parent link="${device_namespace}_left_camera_frame" />
+      <child link="${device_namespace}_left_camera_optical_frame" />
+    </joint>
+
+    <!-- Right Camera -->
+    <link name="${device_namespace}_right_camera_frame" />
+    <joint name="${device_namespace}_right_camera_joint" type="fixed">
+      <parent link="${device_namespace}_center" />
+      <child link="${device_namespace}_right_camera_frame" />
+      <origin xyz="${optical_offset_x} -${baseline/2} 0" rpy="0 0 0" />
+    </joint>
+
+    <link name="${device_namespace}_right_camera_optical_frame" />
+    <joint name="${device_namespace}_right_camera_optical_joint" type="fixed">
+      <origin xyz="0 0 0" rpy="-${M_PI/2} 0.0 -${M_PI/2}" />
+      <parent link="${device_namespace}_right_camera_frame" />
+      <child link="${device_namespace}_right_camera_optical_frame" />
+    </joint>
+
+    <!-- ZED2 Additional Sensor Links -->
+    <link name="${device_namespace}_mag_link" />
+    <joint name="${device_namespace}_mag_joint" type="fixed">
+      <parent link="${device_namespace}_center" />
+      <child link="${device_namespace}_mag_link" />
+      <origin xyz="0 0 0" rpy="0 0 0" />
+    </joint>
+
+    <link name="${device_namespace}_baro_link" />
+    <joint name="${device_namespace}_baro_joint" type="fixed">
+      <parent link="${device_namespace}_center" />
+      <child link="${device_namespace}_baro_link" />
+      <origin xyz="0 0 0" rpy="0 0 0" />
+    </joint>
+
+    <link name="${device_namespace}_temp_left_link" />
+    <joint name="${device_namespace}_temp_left_joint" type="fixed">
+      <parent link="${device_namespace}_left_camera_frame" />
+      <child link="${device_namespace}_temp_left_link" />
+      <origin xyz="0 0 0" rpy="0 0 0" />
+    </joint>
+
+    <!-- Gazebo Sensors -->
+    <gazebo reference="${device_namespace}_center">
+      <!-- RGB Camera -->
+      <sensor name="${device_namespace}_stereolabs_zed_color" type="camera">
+        <topic>${device_namespace}/zed_node/rgb/image_rect_color</topic>
+        <camera>
+          <horizontal_fov>1.919862</horizontal_fov>
+          <image>
+            <width>1920</width>
+            <height>1080</height>
+            <format>R8G8B8</format>
+          </image>
+          <clip>
+            <near>0.3</near>
+            <far>20.0</far>
+          </clip>
+        </camera>
+        <always_on>true</always_on>
+        <update_rate>30</update_rate>
+        <visualize>false</visualize>
+      </sensor>
+
+      <!-- Depth Camera -->
+      <sensor name="${device_namespace}_stereolabs_zed_depth" type="depth_camera">
+        <topic>${device_namespace}/zed_node/depth</topic>
+        <camera>
+          <horizontal_fov>1.919862</horizontal_fov>
+          <image>
+            <width>1920</width>
+            <height>1080</height>
+            <format>R_FLOAT32</format>
+          </image>
+          <clip>
+            <near>0.3</near>
+            <far>20.0</far>
+          </clip>
+          <noise>
+            <type>gaussian</type>
+            <stddev>0.03</stddev>
+          </noise>
+        </camera>
+        <always_on>true</always_on>
+        <update_rate>30</update_rate>
+        <visualize>false</visualize>
+      </sensor>
+    </gazebo>
+
+  </xacro:macro>
+</robot>
